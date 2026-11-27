@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bad Expenses</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
+<meta name="theme-color" content="#b42318">
+<style>
+:root{--bg:#f6f5f3;--card:#fff;--tx:#1c1b1a;--mut:#6b6762;--line:#e4e1dc;--red:#b42318;--green:#087443;--blue:#1d5fd0;--orange:#c4620a}
+@media(prefers-color-scheme:dark){:root{--bg:#141413;--card:#1f1e1d;--tx:#eeece8;--mut:#a29d96;--line:#35332f;--red:#ff7a6e;--green:#4cc38a;--blue:#6ea2ff;--orange:#f0a04b}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.45 system-ui,sans-serif;background:var(--bg);color:var(--tx);padding-bottom:40px}
+main,header{max-width:680px;margin:auto;padding:0 12px}
+h1{font-size:22px;margin:14px 0 8px}h1 span{color:var(--red)}
+h2{font-size:16px;margin:0}
+button,input,select{font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px 11px}
+button{cursor:pointer}.pri{background:#b42318;border-color:#b42318;color:#fff}
+nav,.row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+nav button{flex:1}nav button.on{background:var(--tx);color:var(--bg)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0;overflow-x:auto}
+.sp{flex:1}.mut{color:var(--mut);font-size:13px}.red{color:var(--red)}.green{color:var(--green)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}.stats .card{margin:0}.stats b{font-size:19px;display:block}
+.item{border-top:1px solid var(--line);padding:8px 0;display:flex;gap:8px;align-items:flex-start}
+.item input[type=checkbox]{width:22px;height:22px;margin:2px 0}
+.item .nm{flex:1;min-width:0;cursor:pointer}.off .nm,.off .amt{opacity:.5}
+.amt{text-align:right;white-space:nowrap}
+.bar{height:6px;background:var(--line);border-radius:3px;margin:8px 0}.bar i{display:block;height:100%;border-radius:3px;background:var(--green)}.bar i.o{background:var(--red)}
+table{border-collapse:collapse;width:100%;font-size:13px}td,th{padding:6px 4px;border-top:1px solid var(--line);text-align:right;white-space:nowrap}td:first-child,th:first-child{text-align:left}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--tx);width:min(92vw,400px)}
+dialog::backdrop{background:#0008}
+label{display:block;margin:8px 0;font-size:13px}label input:not([type=checkbox]){width:100%;font-size:16px}
+svg text{fill:var(--mut);font-size:11px}
+</style>
+</head>
+<body>
+<header>
+<h1><span>Bad</span> Expenses</h1>
+<nav id="nav"></nav>
+<div class="row" id="mbar" style="margin-top:8px"></div>
+</header>
+<main id="app"></main>
+<dialog id="dlg"></dialog>
+<input type="file" id="file" accept=".json,application/json" hidden>
+<script src="app.js"></script>
+<script src="sync.js"></script>
+<script>render();sync()</script>
+<script>if('serviceWorker'in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js')</script>
+</body>
+</html>
