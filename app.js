@@ -24,7 +24,8 @@ function catStat(c){
 }
 function monthStat(k){
   const m=S.months[k], c=m.cats.map(x=>({name:x.name,...catStat(x)}));
-  const t={net:r2(m.salary.net),budget:sum(c,x=>x.budget),spent:sum(c,x=>x.spent),over:sum(c,x=>x.over),cats:c};
+  const extra=sum(m.salary.extra||[],x=>x.amt);
+  const t={extra,net:r2(r2(m.salary.net)+extra),budget:sum(c,x=>x.budget),spent:sum(c,x=>x.spent),over:sum(c,x=>x.over),cats:c};
   t.bakiPlan=r2(t.net-t.budget);t.baki=r2(t.net-t.spent);return t;
 }
 
@@ -51,6 +52,7 @@ function newMonth(){
     if(S.months[o.k]){cur=o.k;return}
     const before=keys().filter(k=>k<o.k).at(-1), src=before||keys()[0];
     const m=src?structuredClone(S.months[src]):blank();
+    m.salary.extra=[];
     const gap=src?(o.k.slice(0,4)-src.slice(0,4))*12+(o.k.slice(5)-src.slice(5)):0;
     m.cats.forEach(c=>c.items.forEach(i=>{i.paid=false;i.entries=[];
       if(i.inst){i.inst.n+=gap;if(i.inst.n>i.inst.total)i.on=false}}));
@@ -59,6 +61,7 @@ function newMonth(){
 }
 const editSalary=()=>{const s=S.months[cur].salary;form('Gaji',[{n:'gross',l:'Gaji kasar',type:'number',v:s.gross},{n:'net',l:'Gaji bersih (masuk bank)',type:'number',v:s.net}],o=>{s.gross=o.gross||0;s.net=o.net||0})};
 function editDed(i){const a=S.months[cur].salary.deductions,x=a[i];form('Potongan / maklumat gaji',[{n:'name',l:'Nama',v:x?.name||'',req:1},{n:'amt',l:'Jumlah',type:'number',v:x?.amt??''}],o=>{o.amt=o.amt||0;x?Object.assign(x,o):a.push(o)},x&&(()=>a.splice(i,1)))}
+function editInc(i){const s=S.months[cur].salary,a=s.extra||[],x=a[i];form('Pendapatan tambahan',[{n:'name',l:'Sumber (contoh: OT, side income, bonus)',v:x?.name||'',req:1},{n:'amt',l:'Jumlah (RM)',type:'number',v:x?.amt??'',req:1},{n:'date',l:'Tarikh',type:'date',v:x?.date||today()}],o=>{o.amt=o.amt||0;x?Object.assign(x,o):(s.extra=a).push(o)},x&&(()=>a.splice(i,1)))}
 function editCat(id){const c=id&&cat(id);form(c?'Edit kategori':'Kategori baru',[{n:'name',l:'Nama',v:c?.name||'',req:1},{n:'budget',l:'Had bajet (kosong = ikut jumlah item)',type:'number',v:c?.budget??''}],o=>{c?Object.assign(c,o):S.months[cur].cats.push({id:uid(),...o,items:[]})},c&&(()=>{const a=S.months[cur].cats;a.splice(a.indexOf(c),1)}))}
 function editItem(cid,id){
   const i=id&&item(cid,id);
@@ -77,13 +80,16 @@ function editEntry(cid,id,n){
 function viewMonth(){
   const m=S.months[cur],t=monthStat(cur),s=m.salary;
   const stat=(l,v,c='')=>`<div class="card"><span class="mut">${l}</span><b class="${c}">${rm(v)}</b></div>`;
-  return `<div class="stats" style="margin-top:10px">${stat('Gaji bersih',t.net)}${stat('Jumlah bajet',t.budget)}${stat('Sudah belanja',t.spent)}${stat('Baki sebenar',t.baki,t.baki<0?'red':'green')}</div>
-  ${t.bakiPlan<0?`<div class="card red"><b>Amaran:</b> bajet melebihi gaji bersih sebanyak ${rm(-t.bakiPlan)}.</div>`:`<div class="card green">Baki selepas bajet: ${rm(t.bakiPlan)}</div>`}
+  return `<div class="stats" style="margin-top:10px">${stat(t.extra?'Jumlah pendapatan':'Gaji bersih',t.net)}${stat('Jumlah bajet',t.budget)}${stat('Sudah belanja',t.spent)}${stat('Baki sebenar',t.baki,t.baki<0?'red':'green')}</div>
+  ${t.bakiPlan<0?`<div class="card red"><b>Amaran:</b> bajet melebihi pendapatan sebanyak ${rm(-t.bakiPlan)}.</div>`:`<div class="card green">Baki selepas bajet: ${rm(t.bakiPlan)}</div>`}
   <details class="card"><summary>Gaji kasar ${rm(s.gross)} · potongan</summary>
   ${s.deductions.map((d,n)=>`<div class="item" data-a="ded" data-n="${n}"><span class="nm">${esc(d.name)}</span><span class="amt">${rm(d.amt)}</span></div>`).join('')}
   <div class="row"><button data-a="sal">Edit gaji</button><button data-a="ded">+ Potongan</button></div></details>
+  <div class="card"><div class="row"><h2>Pendapatan tambahan</h2><span class="sp"></span><span class="amt">${rm(t.extra)}</span></div>
+  ${(s.extra||[]).map((x,n)=>`<div class="item" data-a="inc" data-n="${n}"><span class="nm">${esc(x.name)} <span class="mut">${esc(x.date)}</span></span><span class="amt">${rm(x.amt)}</span></div>`).join('')}
+  <div class="mut">Gaji bersih ${rm(s.net)} + tambahan = ${rm(t.net)}</div><button class="pri" data-a="inc">+ Tambah income</button></div>
   ${m.cats.map(c=>{const x=catStat(c),pc=x.budget?x.spent/x.budget*100:(x.spent?100:0);return `<section class="card">
-  <div class="row"><h2>${esc(c.name)}</h2><button data-a="cat" data-c="${c.id}" aria-label="Edit kategori">✎</button><span class="sp"></span><span class="amt">${rm(x.budget)}<br><span class="mut">${t.net?(x.budget/t.net*100).toFixed(1):0}% gaji bersih</span></span></div>
+  <div class="row"><h2>${esc(c.name)}</h2><button data-a="cat" data-c="${c.id}" aria-label="Edit kategori">✎</button><span class="sp"></span><span class="amt">${rm(x.budget)}<br><span class="mut">${t.net?(x.budget/t.net*100).toFixed(1):0}% pendapatan</span></span></div>
   <div class="bar"><i class="${x.over?'o':''}" style="width:${Math.min(100,pc)}%"></i></div>
   <div class="mut">Belanja ${rm(x.spent)}${x.over?` · <b class="red">Lebih ${rm(x.over)}</b>`:''}</div>
   ${c.items.map(i=>{const a=actual(i),ids=`data-c="${c.id}" data-i="${i.id}"`;return `<div class="item ${i.on?'':'off'}">
@@ -106,8 +112,8 @@ function chart(rows){
     g+=`<text x="${x}" y="218" text-anchor="middle">${mName(r.k)}</text>`});
   const pts=rows.map((r,n)=>[50+step*n+step/2,y(r.net)]);
   g+=`<polyline fill="none" stroke="var(--green)" stroke-width="2.5" points="${pts.join(' ')}"/>`+pts.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="var(--green)"/>`).join('');
-  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Graf bajet, belanja dan gaji bersih">${g}</svg>
-  <div class="mut"><span style="color:var(--blue)">■</span> Bajet <span style="color:var(--orange)">■</span> Belanja <span style="color:var(--green)">●</span> Gaji bersih</div>`;
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Graf bajet, belanja dan pendapatan">${g}</svg>
+  <div class="mut"><span style="color:var(--blue)">■</span> Bajet <span style="color:var(--orange)">■</span> Belanja <span style="color:var(--green)">●</span> Pendapatan</div>`;
 }
 function viewReport(){
   const now=today().slice(0,7),all=keys();
@@ -116,11 +122,11 @@ function viewReport(){
   const rows=ks.map(k=>({k,...monthStat(k)})),t=monthStat(cur);
   const over=S.months[cur].cats.flatMap(c=>c.budget!=null?(catStat(c).over?[[c.name,catStat(c).over]]:[]):c.items.filter(i=>actual(i)>plan(i)).map(i=>[c.name+' › '+i.name,r2(actual(i)-plan(i))])).sort((a,b)=>b[1]-a[1]);
   return `<div class="card"><h2>${mName(ks[0])} – ${mName(ks.at(-1))}</h2>${chart(rows)}</div>
-  <div class="card"><table><tr><th>Bulan</th><th>Gaji</th><th>Bajet</th><th>Belanja</th><th>Lebihan</th><th>Baki</th></tr>
+  <div class="card"><table><tr><th>Bulan</th><th>Pendapatan</th><th>Bajet</th><th>Belanja</th><th>Lebihan</th><th>Baki</th></tr>
   ${rows.map(r=>`<tr><td>${mName(r.k)}</td><td>${r.net.toFixed(2)}</td><td>${r.budget.toFixed(2)}</td><td>${r.spent.toFixed(2)}</td><td class="${r.over?'red':''}">${r.over.toFixed(2)}</td><td class="${r.baki<0?'red':''}">${r.baki.toFixed(2)}</td></tr>`).join('')}
   <tr><th>Jumlah</th>${['net','budget','spent','over','baki'].map(f=>`<th>${sum(rows,r=>r[f]).toFixed(2)}</th>`).join('')}</tr></table></div>
   <div class="card"><h2>Report lebihan: ${mName(cur)}</h2>
-  ${t.bakiPlan<0?`<p class="red">Bajet lebih ${rm(-t.bakiPlan)} daripada gaji bersih.</p>`:''}${t.baki<0?`<p class="red">Belanja lebih ${rm(-t.baki)} daripada gaji bersih.</p>`:''}
+  ${t.bakiPlan<0?`<p class="red">Bajet lebih ${rm(-t.bakiPlan)} daripada pendapatan.</p>`:''}${t.baki<0?`<p class="red">Belanja lebih ${rm(-t.baki)} daripada pendapatan.</p>`:''}
   ${over.length?`<table>${over.map(([n,v])=>`<tr><td>${esc(n)}</td><td class="red">+${rm(v)}</td></tr>`).join('')}<tr><th>Jumlah lebihan</th><th>${rm(t.over)}</th></tr></table>`:'<p class="green">Tiada item melebihi bajet.</p>'}</div>
   <div class="card"><h2>Ikut kategori: ${mName(cur)}</h2><table><tr><th>Kategori</th><th>Bajet</th><th>Belanja</th><th>Beza</th></tr>${t.cats.map(c=>`<tr><td>${esc(c.name)}</td><td>${c.budget.toFixed(2)}</td><td>${c.spent.toFixed(2)}</td><td class="${c.spent>c.budget?'red':''}">${(c.budget-c.spent).toFixed(2)}</td></tr>`).join('')}</table></div>`;
 }
@@ -134,13 +140,14 @@ function render(){
   if(cur)$('#sel').onchange=e=>{cur=e.target.value;render()};
   $('#app').innerHTML=tab==='data'?viewCloud()+viewData():viewInbox()+(!cur?`<div class="card"><h2>Mula di sini</h2><p>Import fail data awak, atau mula kosong.</p><div class="row"><button class="pri" data-a="import">Import data</button><button data-a="newm">Mula kosong</button><button data-a="login">Sambung Supabase</button></div></div>`:tab==='report'?viewReport():viewMonth());
 }
-function valid(d){return d&&d.months&&Object.entries(d.months).every(([k,m])=>/^\d{4}-\d{2}$/.test(k)&&m.salary&&Array.isArray(m.salary.deductions)&&Array.isArray(m.cats)&&m.cats.every(c=>/^\w+$/.test(c.id)&&Array.isArray(c.items)&&c.items.every(i=>/^\w+$/.test(i.id)&&Array.isArray(i.entries)&&(!i.inst||(Number.isFinite(i.inst.n)&&Number.isFinite(i.inst.total))))))}
+function valid(d){return d&&d.months&&Object.entries(d.months).every(([k,m])=>/^\d{4}-\d{2}$/.test(k)&&m.salary&&Array.isArray(m.salary.deductions)&&(!m.salary.extra||Array.isArray(m.salary.extra))&&Array.isArray(m.cats)&&m.cats.every(c=>/^\w+$/.test(c.id)&&Array.isArray(c.items)&&c.items.every(i=>/^\w+$/.test(i.id)&&Array.isArray(i.entries)&&(!i.inst||(Number.isFinite(i.inst.n)&&Number.isFinite(i.inst.total))))))}
 document.addEventListener('click',e=>{
   const el=e.target.closest('[data-a]');if(!el)return;const{a,c,i,n,t}=el.dataset;
   if(a==='tab'){tab=t;render()}
   if(a==='newm')newMonth();
   if(a==='sal')editSalary();
   if(a==='ded')editDed(n===undefined?-1:+n);
+  if(a==='inc')editInc(n===undefined?-1:+n);
   if(a==='cat')editCat(c);
   if(a==='item')editItem(c,i);
   if(a==='entry')editEntry(c,i,n===undefined?-1:+n);
